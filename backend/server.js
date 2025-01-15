@@ -12,27 +12,19 @@ const io = socketIO(server, {
     origin: "http://localhost:5173",
     methods: ["GET", "POST"],
   },
-});
-
-// Middleware
+}
 app.use(cors());
-app.use(express.json());
-app.use('/uploads', express.static('uploads'));
-
-// Storage for file uploads
+app.use(express.json())
+app.use('/uploads', express.static('uploads'))
 const storage = multer.diskStorage({
   destination: './uploads/',
   filename: (req, file, cb) => {
-    cb(null, `${Date.now()}${path.extname(file.originalname)}`);
+    cb(null, `${Date.now()}${path.extname(file.originalname)}`)
   },
 });
 
-const upload = multer({ storage });
-
-// Rooms and their states
+const upload = multer({ storage })
 const rooms = new Map();
-
-// File upload route
 app.post('/upload', upload.single('image'), (req, res) => {
   if (!req.file) {
     return res.status(400).json({ error: 'No file uploaded' });
@@ -42,13 +34,11 @@ app.post('/upload', upload.single('image'), (req, res) => {
 
   if (rooms.has(roomId)) {
     rooms.get(roomId).image = imageUrl;
-    io.to(roomId).emit('image', { url: imageUrl });
+    io.to(roomId).emit('image', { url: imageUrl })
   }
   
   res.json({ url: imageUrl });
-});
-
-// Socket.io connection
+})
 io.on('connection', (socket) => {
   console.log(`User connected: ${socket.id}`);
 
@@ -101,10 +91,9 @@ io.on('connection', (socket) => {
     });
     console.log(`User disconnected: ${socket.id}`);
   });
-});
+})
 
-// Server setup
 const PORT = 3000;
 server.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
-});
+  console.log(`Server running on http://localhost:${PORT}`)
+})

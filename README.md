@@ -1,3 +1,4 @@
+![image](https://github.com/user-attachments/assets/4cccbf93-bf43-4e52-adfe-abf8a7b7025a)
 # Frontend Collaboration Platform
 
 A modern real-time platform tailored for **frontend developers** and **interviewers**. This tool enables seamless collaboration by providing features to **upload designs**, **live code with peers**, and even **annotate designs in real-time**.

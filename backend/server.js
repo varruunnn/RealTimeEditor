@@ -12,7 +12,7 @@ const io = socketIO(server, {
     origin: "http://localhost:5173",
     methods: ["GET", "POST"],
   },
-}
+})
 app.use(cors());
 app.use(express.json())
 app.use('/uploads', express.static('uploads'))

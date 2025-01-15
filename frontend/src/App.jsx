@@ -1,17 +1,26 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { io } from "socket.io-client";
 import CodeMirror from "@uiw/react-codemirror";
 import { html } from "@codemirror/lang-html";
 import { githubDark } from "@uiw/codemirror-theme-github";
+import { Loader2, Pencil, Eraser, Trash2 } from "lucide-react";
 
-const socket = io('http://localhost:3000'); 
+const socket = io('http://localhost:3000');
 
 const App = () => {
   const [roomId, setRoomId] = useState('');
   const [joinedRoom, setJoinedRoom] = useState(false);
-  const [image, setImage] = useState(null);
   const [uploadedImage, setUploadedImage] = useState(null);
-  const [code, setCode] = useState('Upload the Figma File and Start Coding Frontend');
+  const [code, setCode] = useState('<!-- Start coding here -->');
+  const [isUploading, setIsUploading] = useState(false);
+  const [tool, setTool] = useState('pencil');
+  const [showCanvas, setShowCanvas] = useState(false);
+
+  const canvasRef = useRef(null);
+  const ctxRef = useRef(null);
+  const isDrawingRef = useRef(false);
+
+  // Room Management
   const createRoom = () => {
     socket.emit('createRoom');
     socket.on('roomCreated', ({ roomId }) => {
@@ -19,21 +28,81 @@ const App = () => {
       setJoinedRoom(true);
     });
   };
+
   const joinRoom = () => {
+    if (!roomId.trim()) {
+      alert('Please enter a room ID');
+      return;
+    }
     socket.emit('joinRoom', { roomId });
-    socket.on('roomJoined', ({ code }) => {
-      setJoinedRoom(true);
-      setCode(code);
-    });
-    socket.on('error', (message) => {
-      alert(message);
-    });
   };
+
+  // Canvas Functions
+  const initializeCanvas = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    canvas.width = canvas.offsetWidth;
+    canvas.height = canvas.offsetHeight;
+    
+    const ctx = canvas.getContext('2d');
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = '#ff0000';
+    ctx.lineWidth = 2;
+    ctxRef.current = ctx;
+  };
+
+  const startDrawing = (e) => {
+    const { offsetX, offsetY } = e.nativeEvent;
+    ctxRef.current.beginPath();
+    ctxRef.current.moveTo(offsetX, offsetY);
+    isDrawingRef.current = true;
+  };
+
+  const draw = (e) => {
+    if (!isDrawingRef.current) return;
+
+    const { offsetX, offsetY } = e.nativeEvent;
+    ctxRef.current.lineTo(offsetX, offsetY);
+    ctxRef.current.stroke();
+
+    if (tool === 'pencil') {
+      ctxRef.current.globalCompositeOperation = 'source-over';
+      ctxRef.current.strokeStyle = '#ff0000';
+      ctxRef.current.lineWidth = 2;
+    } else {
+      ctxRef.current.globalCompositeOperation = 'destination-out';
+      ctxRef.current.lineWidth = 20;
+    }
+  };
+
+  const stopDrawing = () => {
+    if (!isDrawingRef.current) return;
+    
+    isDrawingRef.current = false;
+    ctxRef.current.closePath();
+    
+    const canvasData = canvasRef.current.toDataURL();
+    socket.emit('canvas-update', { roomId, canvasData });
+  };
+
+  const clearCanvas = () => {
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    socket.emit('canvas-update', { roomId, canvasData: null });
+  };
+
+  // Image Upload
   const handleImageUpload = async (e) => {
     const file = e.target.files[0];
+    if (!file) return;
+
+    setIsUploading(true);
     const formData = new FormData();
     formData.append('image', file);
     formData.append('roomId', roomId);
+
     try {
       const response = await fetch('http://localhost:3000/upload', {
         method: 'POST',
@@ -42,77 +111,178 @@ const App = () => {
       const data = await response.json();
       setUploadedImage(data.url);
     } catch (error) {
-      console.error('Error uploading image:', error);
+      alert('Error uploading image');
+    } finally {
+      setIsUploading(false);
     }
   };
-  useEffect(() => {
-    socket.on('image', (data) => {
-      if (data.image) {
-        const blob = new Blob([data.buffer], { type: 'image/png' });
-        const url = URL.createObjectURL(blob);
-        setImage(url);
-      }
-    });
 
-    socket.on('code-update', (newCode) => {
-      setCode(newCode);
+  // Socket Effects
+  useEffect(() => {
+    socket.on('roomJoined', () => setJoinedRoom(true));
+    socket.on('code-update', setCode);
+    socket.on('image', ({ url }) => setUploadedImage(url));
+    socket.on('error', alert);
+    socket.on('canvas-update', ({ canvasData }) => {
+      if (!canvasData || !canvasRef.current) return;
+      
+      const img = new Image();
+      img.src = canvasData;
+      img.onload = () => {
+        ctxRef.current.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+        ctxRef.current.drawImage(img, 0, 0);
+      };
     });
 
     return () => {
-      socket.off('image');
+      socket.off('roomJoined');
       socket.off('code-update');
+      socket.off('image');
+      socket.off('error');
+      socket.off('canvas-update');
     };
   }, []);
-  const handleCodeChange = (value) => {
-    setCode(value);
-    socket.emit('code-change', { roomId, code: value });
-  };
+
+  useEffect(() => {
+    if (showCanvas) {
+      initializeCanvas();
+    }
+  }, [showCanvas, uploadedImage]);
+
+  // Login Screen
   if (!joinedRoom) {
     return (
-      <div className="min-h-screen bg-gray-900 text-white flex flex-col items-center justify-center">
-        <h1 className="text-2xl font-bold mb-5">Join or Create a Room</h1>
-        <div className="flex gap-3">
-          <button onClick={createRoom} className="bg-green-500 px-4 py-2 rounded">Create Room</button>
-          <input
-            type="text"
-            placeholder="Enter Room ID"
-            value={roomId}
-            onChange={(e) => setRoomId(e.target.value)}
-            className="px-4 py-2 text-black rounded"
-          />
-          <button onClick={joinRoom} className="bg-blue-500 px-4 py-2 rounded">Join Room</button>
+      <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">
+        <div className="bg-gray-800 p-8 rounded-lg shadow-xl w-96">
+          <h1 className="text-2xl font-bold mb-6 text-center">Collaborative Code Editor</h1>
+          <div className="space-y-4">
+            <button 
+              onClick={createRoom}
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg transition-colors"
+            >
+              Create New Room
+            </button>
+            <div className="flex space-x-2">
+              <input
+                type="text"
+                placeholder="Enter Room ID"
+                value={roomId}
+                onChange={(e) => setRoomId(e.target.value)}
+                className="flex-1 px-4 py-2 bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <button 
+                onClick={joinRoom}
+                className="bg-green-600 hover:bg-green-700 px-4 py-2 rounded-lg transition-colors"
+              >
+                Join
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     );
   }
 
+  // Main App
   return (
-    <div className="min-h-screen bg-gray-900 text-white">
-      <div className="p-5">
-        <h1 className="text-2xl font-bold text-center mb-5">Room: {roomId}</h1>
-        <div className="flex flex-col items-center mb-5">
-          <input type="file" onChange={handleImageUpload} className="mb-3 bg-gray-800 text-white p-2 rounded" />
-          {uploadedImage && <img src={uploadedImage} alt="Uploaded" className="w-80 mt-3 border border-gray-600" />}
-          {image && <img src={image} alt="Broadcasted" className="w-80 mt-5 border border-gray-600" />}
-        </div>
-        <div className="grid grid-cols-2 gap-5">
-          <div className="bg-gray-800 p-4 rounded-lg shadow-lg">
-            <h2 className="text-lg font-semibold mb-3">Code Editor</h2>
-            <CodeMirror
-              value={code}
-              height="400px"
-              theme={githubDark}
-              extensions={[html()]}
-              onChange={handleCodeChange}
-            />
+    <div className="min-h-screen bg-gray-900 text-white p-6">
+      <div className="max-w-7xl mx-auto">
+        <header className="flex justify-between items-center mb-8">
+          <h1 className="text-2xl font-bold">Room: {roomId}</h1>
+          <div className="space-x-4">
+            <button
+              onClick={() => setShowCanvas(!showCanvas)}
+              className="bg-purple-600 hover:bg-purple-700 px-4 py-2 rounded-lg transition-colors"
+            >
+              {showCanvas ? 'Hide Annotation' : 'Show Annotation'}
+            </button>
+            <label className="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg cursor-pointer transition-colors">
+              Upload Image
+              <input
+                type="file"
+                onChange={handleImageUpload}
+                className="hidden"
+                accept="image/*"
+              />
+            </label>
           </div>
-          <div className="bg-gray-800 p-4 rounded-lg shadow-lg">
-            <h2 className="text-lg font-semibold mb-3">Live Preview</h2>
-            <iframe
-              srcDoc={code}
-              title="Live Preview"
-              className="w-full h-96 border border-gray-600 rounded"
-            ></iframe>
+        </header>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="space-y-4">
+            {isUploading && (
+              <div className="flex items-center justify-center p-4">
+                <Loader2 className="animate-spin" />
+                <span className="ml-2">Uploading...</span>
+              </div>
+            )}
+            
+            {uploadedImage && (
+              <div className="relative">
+                <img
+                  src={uploadedImage}
+                  alt="Uploaded design"
+                  className="rounded-lg shadow-lg max-w-full"
+                />
+                {showCanvas && (
+                  <canvas
+                    ref={canvasRef}
+                    className="absolute inset-0 w-full h-full cursor-crosshair"
+                    onMouseDown={startDrawing}
+                    onMouseMove={draw}
+                    onMouseUp={stopDrawing}
+                    onMouseLeave={stopDrawing}
+                  />
+                )}
+              </div>
+            )}
+
+            {showCanvas && (
+              <div className="flex space-x-2">
+                <button
+                  onClick={() => setTool('pencil')}
+                  className={`p-2 rounded ${tool === 'pencil' ? 'bg-red-600' : 'bg-gray-700'}`}
+                >
+                  <Pencil className="w-5 h-5" />
+                </button>
+                <button
+                  onClick={() => setTool('eraser')}
+                  className={`p-2 rounded ${tool === 'eraser' ? 'bg-red-600' : 'bg-gray-700'}`}
+                >
+                  <Eraser className="w-5 h-5" />
+                </button>
+                <button
+                  onClick={clearCanvas}
+                  className="p-2 rounded bg-gray-700 hover:bg-gray-600"
+                >
+                  <Trash2 className="w-5 h-5" />
+                </button>
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-4">
+            <div className="bg-gray-800 rounded-lg p-4">
+              <CodeMirror
+                value={code}
+                height="400px"
+                theme={githubDark}
+                extensions={[html()]}
+                onChange={(value) => {
+                  setCode(value);
+                  socket.emit('code-change', { roomId, code: value });
+                }}
+              />
+            </div>
+            
+            <div className="bg-gray-800 rounded-lg p-4">
+              <iframe
+                srcDoc={code}
+                title="Preview"
+                className="w-full h-96 bg-white rounded"
+                sandbox="allow-scripts"
+              />
+            </div>
           </div>
         </div>
       </div>
@@ -121,4 +291,3 @@ const App = () => {
 };
 
 export default App;
-

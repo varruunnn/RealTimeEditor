@@ -19,8 +19,6 @@ const App = () => {
   const canvasRef = useRef(null);
   const ctxRef = useRef(null);
   const isDrawingRef = useRef(false);
-
-  // Room Management
   const createRoom = () => {
     socket.emit('createRoom');
     socket.on('roomCreated', ({ roomId }) => {
@@ -36,8 +34,6 @@ const App = () => {
     }
     socket.emit('joinRoom', { roomId });
   };
-
-  // Canvas Functions
   const initializeCanvas = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -92,8 +88,6 @@ const App = () => {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     socket.emit('canvas-update', { roomId, canvasData: null });
   };
-
-  // Image Upload
   const handleImageUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -116,8 +110,6 @@ const App = () => {
       setIsUploading(false);
     }
   };
-
-  // Socket Effects
   useEffect(() => {
     socket.on('roomJoined', () => setJoinedRoom(true));
     socket.on('code-update', setCode);
@@ -148,8 +140,6 @@ const App = () => {
       initializeCanvas();
     }
   }, [showCanvas, uploadedImage]);
-
-  // Login Screen
   if (!joinedRoom) {
     return (
       <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">
@@ -182,8 +172,6 @@ const App = () => {
       </div>
     );
   }
-
-  // Main App
   return (
     <div className="min-h-screen bg-gray-900 text-white p-6">
       <div className="max-w-7xl mx-auto">

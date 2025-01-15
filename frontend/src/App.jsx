@@ -5,7 +5,7 @@ import { html } from "@codemirror/lang-html";
 import { githubDark } from "@uiw/codemirror-theme-github";
 import { Loader2, Pencil, Eraser, Trash2 } from "lucide-react";
 
-const socket = io('http://localhost:3000');
+const socket = io('https://realtimeeditor-d9po.onrender.com');
 
 const App = () => {
   const [roomId, setRoomId] = useState('');

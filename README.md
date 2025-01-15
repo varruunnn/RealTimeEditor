@@ -1,57 +1,31 @@
-# Frontend Dev Collaboration Platform
+# Frontend Collaboration Platform
 
-A real-time collaboration platform designed for frontend developers and interview scenarios. The project allows users to upload design files (e.g., Figma exports, images) and collaboratively code the frontend live with a dynamic preview.
+A modern real-time platform tailored for **frontend developers** and **interviewers**. This tool enables seamless collaboration by providing features to **upload designs**, **live code with peers**, and even **annotate designs in real-time**.
 
----
+## Features
 
-## 🚀 Features
-
-### Real-Time Collaboration
-- **Socket.IO** enables seamless real-time updates for both the code editor and the uploaded images.
-
-### Room-Based Functionality
-- Users can **create rooms** for isolated collaboration or **join existing rooms** to work together on the same codebase.
-
-### File Upload and Rendering
-- Upload design files (e.g., images) to guide the development process.
-- Uploaded files are shared with all participants in the room.
-
-### Live Code Preview
-- A built-in **CodeMirror editor** with support for:
-  - HTML (via `@codemirror/lang-html`)
-  - Dark theme (`@uiw/codemirror-theme-github`)
-- Instant live preview using an `iframe`.
-
-### Developer-Friendly UI
-- Styled with **Tailwind CSS** for a clean, modern, and responsive interface.
+### 🌟 Key Features
+- **Room Creation & Joining**: Create or join rooms to collaborate in real-time.
+- **Live Code Editor**: Write HTML, CSS, and JS using a powerful **CodeMirror-based editor** with GitHub Dark theme support.
+- **Live Preview**: Instantly preview your code changes in a live-rendered iframe.
+- **Image Upload**: Upload Figma files or other design mockups to collaborate visually.
+- **Real-Time Annotations**: Annotate designs using a **pencil tool** or **eraser** for live feedback.
+- **Socket.IO Integration**: Ensures all changes, including code, annotations, and image uploads, are synchronized in real-time.
+- **Persistent State**: Keeps the code, uploaded images, and annotations intact across reloads.
 
 ---
 
-## 🛠️ Technologies Used
+## 🚀 Getting Started
 
-### Backend
-- **Node.js**: Server-side JavaScript runtime.
-- **Express**: Handles HTTP requests and static file serving.
-- **Socket.IO**: Enables real-time bidirectional communication.
-- **Multer**: Handles file uploads on the server.
-- **FS Module**: Reads and shares uploaded image files.
-
-### Frontend
-- **React**: Component-based library for the user interface.
-- **Socket.IO Client**: Connects to the real-time server.
-- **CodeMirror**: A versatile in-browser code editor for HTML/CSS/JS.
-- **Tailwind CSS**: Provides utility-first styling for a polished look.
-
----
+### Prerequisites
+- **Node.js** (v14 or above)
+- **npm** or **yarn**
 
 ## 📦 Installation and Setup
 
-### Prerequisites
-- Node.js and npm installed.
-
 ### Steps
    ```bash
-   git clone https://github.com/varruunnn/RealTimeCodeEditor.git
+   git clone https://github.com/varruunnn/RealTimeEditor.git
    cd RealTimeCodeEditor
    npm install
    cd backend
@@ -72,6 +46,10 @@ Upload an image (e.g., Figma export) for live reference. The image is visible to
 ### Code Together:
 Use the code editor to write and edit HTML, CSS, and JavaScript.
 See the changes live in the preview pane.
+
+### Annotate Designs:
+Use the pencil tool to draw annotations.
+Use the eraser tool to remove unnecessary annotations.
 
 ### Example Scenarios
 Interview Preparation:

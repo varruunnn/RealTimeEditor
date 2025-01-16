@@ -1,13 +1,15 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { io } from "socket.io-client";
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import CodeMirror from "@uiw/react-codemirror";
 import { html } from "@codemirror/lang-html";
 import { githubDark } from "@uiw/codemirror-theme-github";
 import { Loader2, Pencil, Eraser, Trash2 } from "lucide-react";
+import LandingPage from './components/Landingpage';
 
 const socket = io('https://realtimeeditor-c36r.onrender.com');
 
-const App = () => {
+const Editor = () => {
   const [roomId, setRoomId] = useState('');
   const [joinedRoom, setJoinedRoom] = useState(false);
   const [uploadedImage, setUploadedImage] = useState(null);
@@ -302,6 +304,16 @@ const App = () => {
         </div>
       </div>
     </div>
+  );
+};
+const App = () => {
+  return (
+    <Router>
+      <Routes>
+        <Route path="/" element={<LandingPage />} />
+        <Route path="/editor" element={<Editor />} />
+      </Routes>
+    </Router>
   );
 };
 

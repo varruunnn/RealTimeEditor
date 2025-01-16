@@ -1,99 +1,129 @@
 const express = require('express');
-const http = require('http');
-const socketIO = require('socket.io');
+const mongoose = require('mongoose');
+const dotenv = require('dotenv');
 const multer = require('multer');
 const path = require('path');
 const cors = require('cors');
+const { createServer } = require('http');
+const { Server } = require('socket.io');
+
+dotenv.config();
 
 const app = express();
-const server = http.createServer(app);
-const io = socketIO(server, {
+const server = createServer(app);
+const io = new Server(server, {
   cors: {
-    origin: "*",
+    origin: "http://localhost:5173",
     methods: ["GET", "POST"],
   },
-})
+});
 app.use(cors());
-app.use(express.json())
-app.use('/uploads', express.static('uploads'))
-const storage = multer.diskStorage({
-  destination: './uploads/',
-  filename: (req, file, cb) => {
-    cb(null, `${Date.now()}${path.extname(file.originalname)}`)
-  },
+app.use(express.json());
+mongoose.connect(process.env.MONGO_URL, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+}).then(() => {
+  console.log('Connected to MongoDB');
+}).catch((error) => {
+  console.error('MongoDB connection error:', error);
+});
+const RoomSchema = new mongoose.Schema({
+  roomId: { type: String, required: true, unique: true },
+  users: { type: [String], default: [] },
+  code: String,
+  annotations: Array,
+  image: String,
 });
 
-const upload = multer({ storage })
-const rooms = new Map();
-app.post('/upload', upload.single('image'), (req, res) => {
-  if (!req.file) {
-    return res.status(400).json({ error: 'No file uploaded' });
-  }
-  const imageUrl = `http://localhost:3000/uploads/${req.file.filename}`;
+const Room = mongoose.model('Room', RoomSchema);
+const rooms = new Map(); 
+const storage = multer.memoryStorage();
+const upload = multer({ storage });
+app.post('/upload', upload.single('image'), async (req, res) => {
   const { roomId } = req.body;
+  const file = req.file;
 
-  if (rooms.has(roomId)) {
-    rooms.get(roomId).image = imageUrl;
-    io.to(roomId).emit('image', { url: imageUrl })
+  if (!file || !roomId) {
+    return res.status(400).json({ error: 'Image or Room ID missing' });
   }
-  
-  res.json({ url: imageUrl });
-})
-io.on('connection', (socket) => {
-  console.log(`User connected: ${socket.id}`);
+  const base64Image = file.buffer.toString('base64');
+  const imageUrl = `data:${file.mimetype};base64,${base64Image}`;
 
-  socket.on('createRoom', () => {
+  try {
+    const room = await Room.findOneAndUpdate(
+      { roomId },
+      { image: imageUrl },
+      { new: true, upsert: true }
+    );
+    io.to(roomId).emit('image-update', { image: room.image });
+    res.json({ url: room.image });
+  } catch (error) {
+    console.error('Error saving image to DB:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+io.on('connection', (socket) => {
+  console.log('A user connected:', socket.id);
+
+  socket.on('createRoom', async () => {
     const roomId = `room-${Math.random().toString(36).substr(2, 9)}`;
-    socket.join(roomId);
-    rooms.set(roomId, { code: '', image: null, annotations: [], users: new Set([socket.id]) });
-    socket.emit('roomCreated', { roomId });
-    console.log(`Room created: ${roomId}`);
-  });
+   
+    try {
+      await Room.create({ roomId });
+      rooms.set(roomId, { canvasData: null });
+      socket.join(roomId);
+      console.log(`Room created: ${roomId}`);
+      socket.emit('roomCreated', { roomId });
+    } catch (error) {
+      console.error('Error creating room:', error);
+      socket.emit('error', 'Failed to create room');
+    }
+  })
 
   socket.on('joinRoom', ({ roomId }) => {
-    if (!rooms.has(roomId)) {
-      return socket.emit('error', 'Room does not exist');
+    if (rooms.has(roomId)) {
+      socket.join(roomId);
+      socket.emit('roomJoined');
+      const room = rooms.get(roomId)
+      if (room.canvasData) {
+        socket.emit('canvas-update', { canvasData: room.canvasData })
+      }
+    } else {
+      socket.emit('error', `Room with ID ${roomId} does not exist.`)
     }
-    socket.join(roomId);
-    const room = rooms.get(roomId);
-    room.users.add(socket.id);
-    socket.emit('roomJoined', { code: room.code, annotations: room.annotations });
-    console.log(`User ${socket.id} joined room ${roomId}`);
+  })
+
+
+  socket.on('code-change', async ({ roomId, code }) => {
+    try {
+      const room = await Room.findOneAndUpdate({ roomId }, { code }, { new: true });
+      socket.to(roomId).emit('code-update', room.code);
+    } catch (error) {
+      console.error('Error updating code:', error);
+    }
   });
   socket.on('canvas-update', ({ roomId, canvasData }) => {
     if (rooms.has(roomId)) {
-      rooms.get(roomId).canvasData = canvasData;
-      socket.to(roomId).emit('canvas-update', { canvasData });
+      const room = rooms.get(roomId);
+      room.canvasData = canvasData;
+      socket.to(roomId).emit('canvas-update', { canvasData }); 
+    } else {
+      console.error(`Room with ID ${roomId} does not exist.`);
     }
   });
-  
-
-  socket.on('code-change', ({ roomId, code }) => {
-    if (rooms.has(roomId)) {
-      rooms.get(roomId).code = code;
-      socket.to(roomId).emit('code-update', code);
-    }
-  });
-
   socket.on('annotation-change', ({ roomId, annotations }) => {
     if (rooms.has(roomId)) {
       rooms.get(roomId).annotations = annotations;
       socket.to(roomId).emit('annotation-update', annotations);
     }
   });
-
-  socket.on('disconnect', () => {
-    rooms.forEach((room, roomId) => {
-      room.users.delete(socket.id);
-      if (room.users.size === 0) {
-        rooms.delete(roomId);
-      }
-    });
-    console.log(`User disconnected: ${socket.id}`);
+  socket.on('disconnect', async () => {
+    console.log('User disconnected:', socket.id);
   });
-})
+});
 
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`)
-})
+  console.log(`Server running on port ${PORT}`);
+});

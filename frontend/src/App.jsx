@@ -19,6 +19,7 @@ const App = () => {
   const canvasRef = useRef(null);
   const ctxRef = useRef(null);
   const isDrawingRef = useRef(false);
+
   const createRoom = () => {
     socket.emit('createRoom');
     socket.on('roomCreated', ({ roomId }) => {
@@ -34,13 +35,14 @@ const App = () => {
     }
     socket.emit('joinRoom', { roomId });
   };
+
   const initializeCanvas = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
     canvas.width = canvas.offsetWidth;
     canvas.height = canvas.offsetHeight;
-    
+
     const ctx = canvas.getContext('2d');
     ctx.lineCap = 'round';
     ctx.strokeStyle = '#ff0000';
@@ -74,10 +76,10 @@ const App = () => {
 
   const stopDrawing = () => {
     if (!isDrawingRef.current) return;
-    
+
     isDrawingRef.current = false;
     ctxRef.current.closePath();
-    
+
     const canvasData = canvasRef.current.toDataURL();
     socket.emit('canvas-update', { roomId, canvasData });
   };
@@ -88,9 +90,18 @@ const App = () => {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     socket.emit('canvas-update', { roomId, canvasData: null });
   };
+
   const handleImageUpload = async (e) => {
     const file = e.target.files[0];
-    if (!file) return;
+    if (!file) {
+      alert("No file selected");
+      return;
+    }
+
+    if (!roomId) {
+      alert("Please join a room before uploading an image.");
+      return;
+    }
 
     setIsUploading(true);
     const formData = new FormData();
@@ -103,21 +114,33 @@ const App = () => {
         body: formData,
       });
       const data = await response.json();
-      setUploadedImage(data.url);
+
+      if (data.url) {
+        setUploadedImage(data.url);
+        alert("Image uploaded successfully!");
+      } else {
+        alert("Failed to upload image.");
+      }
     } catch (error) {
-      alert('Error uploading image');
+      console.error(error);
+      alert("Error uploading image.");
     } finally {
       setIsUploading(false);
     }
   };
+
   useEffect(() => {
     socket.on('roomJoined', () => setJoinedRoom(true));
     socket.on('code-update', setCode);
-    socket.on('image', ({ url }) => setUploadedImage(url));
-    socket.on('error', alert);
+    socket.on('image', ({ url }) => {
+      setUploadedImage(url);
+    });
+    socket.on('image-update', ({ image }) => {
+      setUploadedImage(image);
+    });
     socket.on('canvas-update', ({ canvasData }) => {
       if (!canvasData || !canvasRef.current) return;
-      
+  
       const img = new Image();
       img.src = canvasData;
       img.onload = () => {
@@ -125,21 +148,25 @@ const App = () => {
         ctxRef.current.drawImage(img, 0, 0);
       };
     });
-
+  
+    // Error listener
+    socket.on('error', alert);
+  
     return () => {
       socket.off('roomJoined');
       socket.off('code-update');
       socket.off('image');
-      socket.off('error');
+      socket.off('image-update');
       socket.off('canvas-update');
+      socket.off('error');
     };
   }, []);
-
   useEffect(() => {
     if (showCanvas) {
       initializeCanvas();
     }
-  }, [showCanvas, uploadedImage]);
+  }, [showCanvas]);
+
   if (!joinedRoom) {
     return (
       <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">

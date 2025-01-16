@@ -13,11 +13,17 @@ const app = express();
 const server = createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: "*",
+    origin: "https://real-time-editor-gilt.vercel.app", 
     methods: ["GET", "POST"],
+    credentials: true, 
   },
 });
-app.use(cors());
+
+app.use(cors({
+  origin: "https://real-time-editor-gilt.vercel.app", 
+  methods: ["GET", "POST"],
+  credentials: true,
+}));
 app.use(express.json());
 mongoose.connect(process.env.MONGO_URL, {
   useNewUrlParser: true,

@@ -5,7 +5,7 @@ import { html } from "@codemirror/lang-html";
 import { githubDark } from "@uiw/codemirror-theme-github";
 import { Loader2, Pencil, Eraser, Trash2 } from "lucide-react";
 
-const socket = io('https://realtimeeditor-d9po.onrender.com');
+const socket = io('https://realtimeeditor-c36r.onrender.com');
 
 const App = () => {
   const [roomId, setRoomId] = useState('');
@@ -109,7 +109,7 @@ const App = () => {
     formData.append('roomId', roomId);
 
     try {
-      const response = await fetch('https://realtimeeditor-d9po.onrender.com/upload', {
+      const response = await fetch('https://realtimeeditor-c36r.onrender.com/upload', {
         method: 'POST',
         body: formData,
       });

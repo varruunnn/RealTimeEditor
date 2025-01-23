@@ -150,8 +150,6 @@ const Editor = () => {
         ctxRef.current.drawImage(img, 0, 0);
       };
     });
-  
-    // Error listener
     socket.on('error', alert);
   
     return () => {

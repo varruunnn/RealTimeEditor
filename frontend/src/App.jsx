@@ -1,12 +1,11 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { io } from "socket.io-client";
-import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import CodeMirror from "@uiw/react-codemirror";
 import { html } from "@codemirror/lang-html";
 import { githubDark } from "@uiw/codemirror-theme-github";
-import { Loader2, Pencil, Eraser, Trash2 } from "lucide-react";
+import { Loader2, Pencil, Eraser, Trash2, Maximize2, Minimize2, Copy, Check  } from "lucide-react";
 import LandingPage from './components/Landingpage';
-
 const socket = io('https://realtimeeditor-c36r.onrender.com');
 
 const Editor = () => {
@@ -17,10 +16,16 @@ const Editor = () => {
   const [isUploading, setIsUploading] = useState(false);
   const [tool, setTool] = useState('pencil');
   const [showCanvas, setShowCanvas] = useState(false);
+  const [editorHeight, setEditorHeight] = useState(400);
+  const [previewHeight, setPreviewHeight] = useState(400);
+  const [imageSize, setImageSize] = useState('medium');
+  const [copied, setCopied] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   const canvasRef = useRef(null);
   const ctxRef = useRef(null);
   const isDrawingRef = useRef(false);
+  const dragRef = useRef(null);
 
   const createRoom = () => {
     socket.emit('createRoom');
@@ -37,7 +42,31 @@ const Editor = () => {
     }
     socket.emit('joinRoom', { roomId });
   };
-
+  const copyRoomId = (e) => {
+    e.preventDefault(); 
+    navigator.clipboard.writeText(roomId);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+  
+  const handleImageSize = () => {
+    const sizes = {
+      small: 'medium',
+      medium: 'large',
+      large: 'small'
+    };
+    setImageSize(sizes[imageSize]);
+  };
+  const toggleFullscreen = () => {
+    setIsFullscreen(!isFullscreen);
+    if (!isFullscreen) {
+      setEditorHeight(600);
+      setPreviewHeight(600);
+    } else {
+      setEditorHeight(400);
+      setPreviewHeight(400);
+    }
+  };
   const initializeCanvas = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -119,6 +148,7 @@ const Editor = () => {
 
       if (data.url) {
         setUploadedImage(data.url);
+        setShowCanvas(true);
         alert("Image uploaded successfully!");
       } else {
         alert("Failed to upload image.");
@@ -169,13 +199,15 @@ const Editor = () => {
 
   if (!joinedRoom) {
     return (
-      <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">
-        <div className="bg-gray-800 p-8 rounded-lg shadow-xl w-96">
-          <h1 className="text-2xl font-bold mb-6 text-center">Collaborative Code Editor</h1>
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 to-gray-800 text-white flex items-center justify-center">
+        <div className="bg-gray-800/50 backdrop-blur-lg p-8 rounded-xl shadow-2xl w-96 border border-gray-700">
+          <h1 className="text-3xl font-bold mb-6 text-center bg-gradient-to-r from-blue-500 to-purple-500 bg-clip-text text-transparent">
+            Collaborative Code Editor
+          </h1>
           <div className="space-y-4">
             <button 
               onClick={createRoom}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg transition-colors"
+              className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white py-3 rounded-lg transition-all duration-300 transform hover:scale-105 font-medium"
             >
               Create New Room
             </button>
@@ -185,11 +217,11 @@ const Editor = () => {
                 placeholder="Enter Room ID"
                 value={roomId}
                 onChange={(e) => setRoomId(e.target.value)}
-                className="flex-1 px-4 py-2 bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="flex-1 px-4 py-3 bg-gray-700/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-300 placeholder-gray-400"
               />
               <button 
                 onClick={joinRoom}
-                className="bg-green-600 hover:bg-green-700 px-4 py-2 rounded-lg transition-colors"
+                className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 px-6 py-3 rounded-lg transition-all duration-300 transform hover:scale-105 font-medium"
               >
                 Join
               </button>
@@ -200,19 +232,28 @@ const Editor = () => {
     );
   }
   return (
-    <div className="min-h-screen bg-gray-900 text-white p-6">
-      <div className="max-w-7xl mx-auto">
-        <header className="flex justify-between items-center mb-8">
-          <h1 className="text-2xl font-bold">Room: {roomId}</h1>
-          <div className="space-x-4">
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 to-gray-800 text-white p-6">
+      <div className="max-w-8xl mx-auto">
+        <header className="flex justify-between items-center mb-8 bg-gray-800/50 backdrop-blur-lg p-4 rounded-xl border border-gray-700">
+          <div className="flex items-center space-x-4">
+            <h1 className="text-2xl font-bold">Room: {roomId}</h1>
+            <button
+              onClick={copyRoomId}
+              className="flex items-center space-x-2 text-sm bg-gray-700 hover:bg-gray-600 px-3 py-1.5 rounded-lg transition-colors"
+            >
+              {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+              <span>{copied ? 'Copied!' : 'Copy ID'}</span>
+            </button>
+          </div>
+          <div className="flex items-center space-x-4">
             <button
               onClick={() => setShowCanvas(!showCanvas)}
-              className="bg-purple-600 hover:bg-purple-700 px-4 py-2 rounded-lg transition-colors"
+              className="bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 px-4 py-2 rounded-lg transition-all duration-300 transform hover:scale-105 font-medium flex items-center space-x-2"
             >
               {showCanvas ? 'Hide Annotation' : 'Show Annotation'}
             </button>
-            <label className="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg cursor-pointer transition-colors">
-              Upload Image
+            <label className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 px-4 py-2 rounded-lg cursor-pointer transition-all duration-300 transform hover:scale-105 font-medium flex items-center space-x-2">
+              <span>Upload Image</span>
               <input
                 type="file"
                 onChange={handleImageUpload}
@@ -224,51 +265,68 @@ const Editor = () => {
         </header>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="space-y-4">
+          <div className={`space-y-4 transition-all duration-300 ${
+            imageSize === 'small' ? 'lg:col-span-1' : 
+            imageSize === 'large' ? 'lg:col-span-2' : 'lg:col-span-1'
+          }`}>
             {isUploading && (
-              <div className="flex items-center justify-center p-4">
-                <Loader2 className="animate-spin" />
+              <div className="flex items-center justify-center p-4 bg-gray-800/50 backdrop-blur-lg rounded-xl">
+                <Loader2 className="animate-spin text-blue-500" />
                 <span className="ml-2">Uploading...</span>
               </div>
             )}
             
             {uploadedImage && (
-              <div className="relative">
-                <img
-                  src={uploadedImage}
-                  alt="Uploaded design"
-                  className="rounded-lg shadow-lg max-w-full"
-                />
-                {showCanvas && (
-                  <canvas
-                    ref={canvasRef}
-                    className="absolute inset-0 w-full h-full cursor-crosshair"
-                    onMouseDown={startDrawing}
-                    onMouseMove={draw}
-                    onMouseUp={stopDrawing}
-                    onMouseLeave={stopDrawing}
+              <div className="relative group">
+                <div className="absolute top-2 right-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button
+                    onClick={handleImageSize}
+                    className="bg-gray-800/90 p-2 rounded-lg hover:bg-gray-700 transition-colors"
+                  >
+                    {imageSize === 'small' ? <Maximize2 className="w-5 h-5" /> : <Minimize2 className="w-5 h-5" />}
+                  </button>
+                </div>
+                <div className="relative rounded-xl overflow-hidden shadow-2xl border border-gray-700">
+                  <img
+                    src={uploadedImage}
+                    alt="Uploaded design"
+                    className="w-full"
                   />
-                )}
+                  {showCanvas && (
+                    <canvas
+                      ref={canvasRef}
+                      className="absolute inset-0 w-full h-full cursor-crosshair"
+                      onMouseDown={startDrawing}
+                      onMouseMove={draw}
+                      onMouseUp={stopDrawing}
+                      onMouseLeave={stopDrawing}
+                    />
+                  )}
+                </div>
               </div>
             )}
 
             {showCanvas && (
-              <div className="flex space-x-2">
+              <div className="flex space-x-2 bg-gray-800/50 backdrop-blur-lg p-3 rounded-xl border border-gray-700">
                 <button
                   onClick={() => setTool('pencil')}
-                  className={`p-2 rounded ${tool === 'pencil' ? 'bg-red-600' : 'bg-gray-700'}`}
+                  className={`p-2 rounded-lg transition-colors ${
+                    tool === 'pencil' ? 'bg-red-600 hover:bg-red-700' : 'bg-gray-700 hover:bg-gray-600'
+                  }`}
                 >
                   <Pencil className="w-5 h-5" />
                 </button>
                 <button
                   onClick={() => setTool('eraser')}
-                  className={`p-2 rounded ${tool === 'eraser' ? 'bg-red-600' : 'bg-gray-700'}`}
+                  className={`p-2 rounded-lg transition-colors ${
+                    tool === 'eraser' ? 'bg-red-600 hover:bg-red-700' : 'bg-gray-700 hover:bg-gray-600'
+                  }`}
                 >
                   <Eraser className="w-5 h-5" />
                 </button>
                 <button
                   onClick={clearCanvas}
-                  className="p-2 rounded bg-gray-700 hover:bg-gray-600"
+                  className="p-2 rounded-lg bg-gray-700 hover:bg-gray-600 transition-colors"
                 >
                   <Trash2 className="w-5 h-5" />
                 </button>
@@ -276,25 +334,55 @@ const Editor = () => {
             )}
           </div>
 
-          <div className="space-y-4">
-            <div className="bg-gray-800 rounded-lg p-4">
+          <div className={`space-y-4 ${
+            imageSize === 'large' ? 'lg:col-span-2' : 'lg:col-span-1'
+          }`}>
+            <div className="bg-gray-800/50 backdrop-blur-lg rounded-xl p-4 border border-gray-700 relative group">
+              <div className="absolute top-2 right-2 z-10 flex space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                <button
+                  onClick={toggleFullscreen}
+                  className="bg-gray-700 p-2 rounded-lg hover:bg-gray-600 transition-colors"
+                >
+                  {isFullscreen ? <Minimize2 className="w-5 h-5" /> : <Maximize2 className="w-5 h-5" />}
+                </button>
+                <input
+                  type="range"
+                  min="200"
+                  max="800"
+                  value={editorHeight}
+                  onChange={(e) => setEditorHeight(Number(e.target.value))}
+                  className="w-32"
+                />
+              </div>
               <CodeMirror
                 value={code}
-                height="400px"
+                height={`${editorHeight}px`}
                 theme={githubDark}
                 extensions={[html()]}
                 onChange={(value) => {
                   setCode(value);
                   socket.emit('code-change', { roomId, code: value });
                 }}
+                className="rounded-lg overflow-hidden"
               />
             </div>
             
-            <div className="bg-gray-800 rounded-lg p-4">
+            <div className="bg-gray-800/50 backdrop-blur-lg rounded-xl p-4 border border-gray-700 relative group">
+              <div className="absolute top-2 right-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity">
+                <input
+                  type="range"
+                  min="200"
+                  max="800"
+                  value={previewHeight}
+                  onChange={(e) => setPreviewHeight(Number(e.target.value))}
+                  className="w-32"
+                />
+              </div>
               <iframe
                 srcDoc={code}
                 title="Preview"
-                className="w-full h-96 bg-white rounded"
+                style={{ height: `${previewHeight}px` }}
+                className="w-full bg-white rounded-lg"
                 sandbox="allow-scripts"
               />
             </div>

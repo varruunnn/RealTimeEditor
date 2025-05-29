@@ -128,6 +128,15 @@ io.on('connection', (socket) => {
     console.log('User disconnected:', socket.id);
   });
 });
+app.get('/health', async (req, res) => {
+  const mongoStatus = mongoose.connection.readyState === 1 ? 'connected' : 'disconnected';
+  res.status(200).json({
+    status: 'ok',
+    uptime: process.uptime(),
+    mongo: mongoStatus,
+    timestamp: new Date(),
+  });
+});
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {

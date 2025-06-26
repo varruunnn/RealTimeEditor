@@ -4,7 +4,7 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import CodeMirror from "@uiw/react-codemirror";
 import { html } from "@codemirror/lang-html";
 import { githubDark } from "@uiw/codemirror-theme-github";
-import { Loader2, Pencil, Eraser, Trash2, Maximize2, Minimize2, Copy, Check  } from "lucide-react";
+import { Loader2, Pencil, Eraser, Trash2, Maximize2, Minimize2, Copy, Check } from "lucide-react";
 import LandingPage from './components/Landingpage';
 const socket = io('https://realtimeeditor-c36r.onrender.com');
 
@@ -13,6 +13,7 @@ const Editor = () => {
   const [joinedRoom, setJoinedRoom] = useState(false);
   const [uploadedImage, setUploadedImage] = useState(null);
   const [code, setCode] = useState('<!-- Start coding here -->');
+  const [loading, setloading] = useState(false)
   const [isUploading, setIsUploading] = useState(false);
   const [tool, setTool] = useState('pencil');
   const [showCanvas, setShowCanvas] = useState(false);
@@ -28,10 +29,12 @@ const Editor = () => {
   const dragRef = useRef(null);
 
   const createRoom = () => {
+    setloading(true);
     socket.emit('createRoom');
     socket.on('roomCreated', ({ roomId }) => {
       setRoomId(roomId);
       setJoinedRoom(true);
+      setloading(false)
     });
   };
 
@@ -40,15 +43,16 @@ const Editor = () => {
       alert('Please enter a room ID');
       return;
     }
+    setloading(true)
     socket.emit('joinRoom', { roomId });
   };
   const copyRoomId = (e) => {
-    e.preventDefault(); 
+    e.preventDefault();
     navigator.clipboard.writeText(roomId);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
-  
+
   const handleImageSize = () => {
     const sizes = {
       small: 'medium',
@@ -162,7 +166,10 @@ const Editor = () => {
   };
 
   useEffect(() => {
-    socket.on('roomJoined', () => setJoinedRoom(true));
+    socket.on('roomJoined', () => {
+      setJoinedRoom(true);
+      setLoading(false);
+    });
     socket.on('code-update', setCode);
     socket.on('image', ({ url }) => {
       setUploadedImage(url);
@@ -172,7 +179,7 @@ const Editor = () => {
     });
     socket.on('canvas-update', ({ canvasData }) => {
       if (!canvasData || !canvasRef.current) return;
-  
+
       const img = new Image();
       img.src = canvasData;
       img.onload = () => {
@@ -181,7 +188,7 @@ const Editor = () => {
       };
     });
     socket.on('error', alert);
-  
+
     return () => {
       socket.off('roomJoined');
       socket.off('code-update');
@@ -197,9 +204,15 @@ const Editor = () => {
     }
   }, [showCanvas]);
 
-  if (!joinedRoom) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 to-gray-800 text-white flex items-center justify-center">
+if (!joinedRoom) {
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 to-gray-800 text-white flex items-center justify-center">
+      {loading ? (
+        <div className="flex flex-col items-center justify-center space-y-4">
+          <Loader2 className="animate-spin w-8 h-8 text-blue-500" />
+          <span className="text-lg">Joining Room...</span>
+        </div>
+      ) : (
         <div className="bg-gray-800/50 backdrop-blur-lg p-8 rounded-xl shadow-2xl w-96 border border-gray-700">
           <h1 className="text-3xl font-bold mb-6 text-center bg-gradient-to-r from-blue-500 to-purple-500 bg-clip-text text-transparent">
             Collaborative Code Editor
@@ -228,9 +241,10 @@ const Editor = () => {
             </div>
           </div>
         </div>
-      </div>
-    );
-  }
+      )}
+    </div>
+  );
+}
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 to-gray-800 text-white p-6">
       <div className="max-w-8xl mx-auto">
@@ -265,17 +279,16 @@ const Editor = () => {
         </header>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className={`space-y-4 transition-all duration-300 ${
-            imageSize === 'small' ? 'lg:col-span-1' : 
-            imageSize === 'large' ? 'lg:col-span-2' : 'lg:col-span-1'
-          }`}>
+          <div className={`space-y-4 transition-all duration-300 ${imageSize === 'small' ? 'lg:col-span-1' :
+              imageSize === 'large' ? 'lg:col-span-2' : 'lg:col-span-1'
+            }`}>
             {isUploading && (
               <div className="flex items-center justify-center p-4 bg-gray-800/50 backdrop-blur-lg rounded-xl">
                 <Loader2 className="animate-spin text-blue-500" />
                 <span className="ml-2">Uploading...</span>
               </div>
             )}
-            
+
             {uploadedImage && (
               <div className="relative group">
                 <div className="absolute top-2 right-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -310,17 +323,15 @@ const Editor = () => {
               <div className="flex space-x-2 bg-gray-800/50 backdrop-blur-lg p-3 rounded-xl border border-gray-700">
                 <button
                   onClick={() => setTool('pencil')}
-                  className={`p-2 rounded-lg transition-colors ${
-                    tool === 'pencil' ? 'bg-red-600 hover:bg-red-700' : 'bg-gray-700 hover:bg-gray-600'
-                  }`}
+                  className={`p-2 rounded-lg transition-colors ${tool === 'pencil' ? 'bg-red-600 hover:bg-red-700' : 'bg-gray-700 hover:bg-gray-600'
+                    }`}
                 >
                   <Pencil className="w-5 h-5" />
                 </button>
                 <button
                   onClick={() => setTool('eraser')}
-                  className={`p-2 rounded-lg transition-colors ${
-                    tool === 'eraser' ? 'bg-red-600 hover:bg-red-700' : 'bg-gray-700 hover:bg-gray-600'
-                  }`}
+                  className={`p-2 rounded-lg transition-colors ${tool === 'eraser' ? 'bg-red-600 hover:bg-red-700' : 'bg-gray-700 hover:bg-gray-600'
+                    }`}
                 >
                   <Eraser className="w-5 h-5" />
                 </button>
@@ -334,9 +345,8 @@ const Editor = () => {
             )}
           </div>
 
-          <div className={`space-y-4 ${
-            imageSize === 'large' ? 'lg:col-span-2' : 'lg:col-span-1'
-          }`}>
+          <div className={`space-y-4 ${imageSize === 'large' ? 'lg:col-span-2' : 'lg:col-span-1'
+            }`}>
             <div className="bg-gray-800/50 backdrop-blur-lg rounded-xl p-4 border border-gray-700 relative group">
               <div className="absolute top-2 right-2 z-10 flex space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
                 <button
@@ -366,7 +376,7 @@ const Editor = () => {
                 className="rounded-lg overflow-hidden"
               />
             </div>
-            
+
             <div className="bg-gray-800/50 backdrop-blur-lg rounded-xl p-4 border border-gray-700 relative group">
               <div className="absolute top-2 right-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity">
                 <input

@@ -6,13 +6,23 @@ import { html } from "@codemirror/lang-html";
 import { githubDark } from "@uiw/codemirror-theme-github";
 import { Loader2, Pencil, Eraser, Trash2, Maximize2, Minimize2, Copy, Check } from "lucide-react";
 import LandingPage from './components/Landingpage';
-const socket = io('https://realtimeeditor-c36r.onrender.com');
+const socket = io(import.meta.env.VITE_SERVER_URL);
 
 const Editor = () => {
   const [roomId, setRoomId] = useState('');
   const [joinedRoom, setJoinedRoom] = useState(false);
   const [uploadedImage, setUploadedImage] = useState(null);
-  const [code, setCode] = useState('<!-- Start coding here -->');
+  const [code, setCode] = useState(`<!DOCTYPE html>
+  <html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+  </head>
+  <body>
+    <h1>Hello, world!</h1>
+  </body>
+  </html>`);
   const [loading, setloading] = useState(false)
   const [isUploading, setIsUploading] = useState(false);
   const [tool, setTool] = useState('pencil');
@@ -144,7 +154,7 @@ const Editor = () => {
     formData.append('roomId', roomId);
 
     try {
-      const response = await fetch('https://realtimeeditor-c36r.onrender.com/upload', {
+     const response = await fetch(`${import.meta.env.VITE_SERVER_URL}/upload`, {
         method: 'POST',
         body: formData,
       });
@@ -204,47 +214,47 @@ const Editor = () => {
     }
   }, [showCanvas]);
 
-if (!joinedRoom) {
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 to-gray-800 text-white flex items-center justify-center">
-      {loading ? (
-        <div className="flex flex-col items-center justify-center space-y-4">
-          <Loader2 className="animate-spin w-8 h-8 text-blue-500" />
-          <span className="text-lg">Joining Room...</span>
-        </div>
-      ) : (
-        <div className="bg-gray-800/50 backdrop-blur-lg p-8 rounded-xl shadow-2xl w-96 border border-gray-700">
-          <h1 className="text-3xl font-bold mb-6 text-center bg-gradient-to-r from-blue-500 to-purple-500 bg-clip-text text-transparent">
-            Collaborative Code Editor
-          </h1>
-          <div className="space-y-4">
-            <button 
-              onClick={createRoom}
-              className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white py-3 rounded-lg transition-all duration-300 transform hover:scale-105 font-medium"
-            >
-              Create New Room
-            </button>
-            <div className="flex space-x-2">
-              <input
-                type="text"
-                placeholder="Enter Room ID"
-                value={roomId}
-                onChange={(e) => setRoomId(e.target.value)}
-                className="flex-1 px-4 py-3 bg-gray-700/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-300 placeholder-gray-400"
-              />
-              <button 
-                onClick={joinRoom}
-                className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 px-6 py-3 rounded-lg transition-all duration-300 transform hover:scale-105 font-medium"
+  if (!joinedRoom) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 to-gray-800 text-white flex items-center justify-center">
+        {loading ? (
+          <div className="flex flex-col items-center justify-center space-y-4">
+            <Loader2 className="animate-spin w-8 h-8 text-blue-500" />
+            <span className="text-lg">Joining Room...</span>
+          </div>
+        ) : (
+          <div className="bg-gray-800/50 backdrop-blur-lg p-8 rounded-xl shadow-2xl w-96 border border-gray-700">
+            <h1 className="text-3xl font-bold mb-6 text-center bg-gradient-to-r from-blue-500 to-purple-500 bg-clip-text text-transparent">
+              Collaborative Code Editor
+            </h1>
+            <div className="space-y-4">
+              <button
+                onClick={createRoom}
+                className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white py-3 rounded-lg transition-all duration-300 transform hover:scale-105 font-medium"
               >
-                Join
+                Create New Room
               </button>
+              <div className="flex space-x-2">
+                <input
+                  type="text"
+                  placeholder="Enter Room ID"
+                  value={roomId}
+                  onChange={(e) => setRoomId(e.target.value)}
+                  className="flex-1 px-4 py-3 bg-gray-700/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-300 placeholder-gray-400"
+                />
+                <button
+                  onClick={joinRoom}
+                  className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 px-6 py-3 rounded-lg transition-all duration-300 transform hover:scale-105 font-medium"
+                >
+                  Join
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
-    </div>
-  );
-}
+        )}
+      </div>
+    );
+  }
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 to-gray-800 text-white p-6">
       <div className="max-w-8xl mx-auto">
@@ -280,7 +290,7 @@ if (!joinedRoom) {
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div className={`space-y-4 transition-all duration-300 ${imageSize === 'small' ? 'lg:col-span-1' :
-              imageSize === 'large' ? 'lg:col-span-2' : 'lg:col-span-1'
+            imageSize === 'large' ? 'lg:col-span-2' : 'lg:col-span-1'
             }`}>
             {isUploading && (
               <div className="flex items-center justify-center p-4 bg-gray-800/50 backdrop-blur-lg rounded-xl">

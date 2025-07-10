@@ -13,14 +13,14 @@ const app = express();
 const server = createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: "https://real-time-editor-gilt.vercel.app", 
+    origin: process.env.CLIENT_ORIGIN,
     methods: ["GET", "POST"],
-    credentials: true, 
+    credentials: true,
   },
 });
 
 app.use(cors({
-  origin: "https://real-time-editor-gilt.vercel.app", 
+  origin: process.env.CLIENT_ORIGIN,
   methods: ["GET", "POST"],
   credentials: true,
 }));
